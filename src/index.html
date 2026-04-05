@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    img-src 'self' https: data: blob:;
+    style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com;
+    connect-src 'none';
+    frame-src 'none';
+    object-src 'none';
+  ">
+  <title>Roblox Instance Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"Geist Mono"', 'monospace'],
+          },
+          animation: {
+            'fade-in':  'fadeIn 0.18s ease-out',
+            'scale-in': 'scaleIn 0.15s ease-out',
+            'slide-up': 'slideUp 0.18s ease-out',
+          },
+          keyframes: {
+            fadeIn:  { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+            scaleIn: { from: { opacity: '0', transform: 'scale(0.95)' },     to: { opacity: '1', transform: 'scale(1)' } },
+            slideUp: { from: { opacity: '0', transform: 'translateY(12px)' },to: { opacity: '1', transform: 'translateY(0)' } },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #000000;
+      color: white;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+
+    input, textarea { user-select: text !important; font-family: inherit; }
+    code { font-family: 'Geist Mono', monospace; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: #ffffff;
+      color: #000000;
+      padding: 8px 16px; border-radius: 8px;
+      font-weight: 700; font-size: 13.5px;
+      border: none; cursor: pointer; transition: all 0.12s; outline: none;
+      font-family: 'DM Sans', sans-serif;
+      letter-spacing: -0.1px;
+    }
+    .btn-primary:hover  { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .btn-ghost {
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      padding: 8px 16px; border-radius: 8px;
+      font-weight: 500; font-size: 13.5px;
+      border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer; transition: all 0.12s; outline: none;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.06); color: white; border-color: rgba(255,255,255,0.20); }
+    .btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-danger {
+      background: transparent;
+      color: rgba(255,255,255,0.4);
+      padding: 6px 14px; border-radius: 8px;
+      font-weight: 500; font-size: 13px;
+      border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer; transition: all 0.12s; outline: none;
+    }
+    .btn-danger:hover { background: rgba(255,255,255,0.06); color: white; border-color: rgba(255,255,255,0.22); }
+
+    /* ── Nav ── */
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 7px;
+      color: rgba(255,255,255,0.32); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.12s; text-decoration: none;
+      border: 1px solid transparent;
+    }
+    .nav-item:hover  { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); }
+    .nav-item.active {
+      background: rgba(255,255,255,0.06);
+      color: #ffffff;
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    /* ── Input ── */
+    .input-field {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 10px 14px;
+      color: white; font-size: 13.5px; outline: none;
+      transition: all 0.12s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .input-field::placeholder { color: rgba(255,255,255,0.22); }
+    .input-field:focus {
+      border-color: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 20px;
+    }
+    .card-sm {
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 9px; padding: 14px;
+    }
+
+    /* ── Toggle ── */
+    .toggle-track {
+      width: 40px; height: 22px; border-radius: 11px;
+      background: rgba(255,255,255,0.10);
+      position: relative; cursor: pointer;
+      transition: background 0.18s; border: 1px solid rgba(255,255,255,0.12); outline: none; flex-shrink: 0;
+    }
+    .toggle-track.on { background: #ffffff; border-color: rgba(255,255,255,0.0); }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: rgba(255,255,255,0.5);
+      transition: transform 0.18s, background 0.18s; pointer-events: none;
+    }
+    .toggle-track.on .toggle-thumb { transform: translateX(18px); background: #000000; }
+
+    /* ── Status dots ── */
+    .status-dot-white { width: 7px; height: 7px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+    .status-dot-grey  { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.18); }
+
+    /* ── Tags ── */
+    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 600; }
+    .tag-active { background: rgba(255,255,255,0.08); color: #ffffff; border: 1px solid rgba(255,255,255,0.18); }
+    .tag-grey   { background: transparent; color: rgba(255,255,255,0.28); border: 1px solid rgba(255,255,255,0.08); }
+
+    /* ── Page animation ── */
+    .page-enter { animation: fadeIn 0.16s ease-out; }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.10);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite; display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal ── */
+    #modal-overlay { display: none; }
+    #modal-overlay.open { display: flex; }
+
+    /* ── Flex utils ── */
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mb-7 { margin-bottom: 1.75rem; }
+  </style>
+</head>
+<body class="h-screen flex flex-col">
+
+  <!-- Title bar -->
+  <div id="titlebar"
+       class="flex items-center justify-between px-4 flex-shrink-0"
+       style="-webkit-app-region: drag; height:40px; background: #000000; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    <div class="flex items-center gap-2.5">
+      <div style="width:22px;height:22px;border-radius:6px;background:#ffffff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.5">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        </svg>
+      </div>
+      <span style="font-size:12.5px;font-weight:600;color:rgba(255,255,255,0.45);letter-spacing:0.01em;">Roblox Instance Manager</span>
+    </div>
+    <div class="flex gap-1.5" style="-webkit-app-region: no-drag;">
+      <button id="btn-minimize" title="Minimize"
+              style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,0.10);background:transparent;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.28);outline:none;cursor:pointer;transition:all 0.12s;"
+              onmouseenter="this.style.background='rgba(255,255,255,0.07)';this.style.color='white';"
+              onmouseleave="this.style.background='transparent';this.style.color='rgba(255,255,255,0.28)';">
+        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="5" x2="8" y2="5"/></svg>
+      </button>
+      <button id="btn-maximize" title="Maximize"
+              style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,0.10);background:transparent;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.28);outline:none;cursor:pointer;transition:all 0.12s;"
+              onmouseenter="this.style.background='rgba(255,255,255,0.07)';this.style.color='white';"
+              onmouseleave="this.style.background='transparent';this.style.color='rgba(255,255,255,0.28)';">
+        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="6" height="6" rx="1"/></svg>
+      </button>
+      <button id="btn-close" title="Close"
+              style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,0.10);background:transparent;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.28);outline:none;cursor:pointer;transition:all 0.12s;"
+              onmouseenter="this.style.background='rgba(255,255,255,0.08)';this.style.color='white';this.style.borderColor='rgba(255,255,255,0.22)';"
+              onmouseleave="this.style.background='transparent';this.style.color='rgba(255,255,255,0.28)';this.style.borderColor='rgba(255,255,255,0.10)';">
+        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="flex-shrink-0 flex flex-col py-3 px-2.5 gap-1"
+           style="width:200px;background:#000000;border-right:1px solid rgba(255,255,255,0.08);">
+      <nav class="flex flex-col gap-0.5 flex-1">
+        <a class="nav-item active" data-page="accounts">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>
+          </svg>
+          Accounts
+          <span id="badge-accounts"
+                class="ml-auto hidden"
+                style="background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.75);font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:20px;font-family:'Geist Mono',monospace;border:1px solid rgba(255,255,255,0.12);">0</span>
+        </a>
+        <a class="nav-item" data-page="settings">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          Settings
+        </a>
+      </nav>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;">
+        <div class="flex items-center gap-2 px-1">
+          <div style="width:7px;height:7px;border-radius:50%;background:#ffffff;box-shadow:0 0 6px rgba(255,255,255,0.45);flex-shrink:0;"></div>
+          <span style="font-size:11px;color:rgba(255,255,255,0.25);letter-spacing:0.02em;">Ready</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 overflow-hidden flex flex-col" style="background:#000000;">
+      <div id="page-content" class="flex-1 overflow-y-auto p-6">
+        <div class="flex items-center justify-center h-full">
+          <div class="spinner" style="width:26px;height:26px;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 flex flex-col gap-2 z-50" style="pointer-events:none;"></div>
+
+  <!-- Modal overlay -->
+  <div id="modal-overlay"
+       class="fixed inset-0 z-40 flex items-center justify-center"
+       style="background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);">
+    <div id="modal-box" class="animate-scale-in" style="min-width:420px;max-width:520px;width:100%;"></div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

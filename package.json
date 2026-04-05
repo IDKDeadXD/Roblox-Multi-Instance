@@ -1,0 +1,32 @@
+{
+  "name": "roblox-instance-manager",
+  "version": "1.0.0",
+  "description": "Secure Roblox Multi-Instance Manager",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "node-machine-id": "^1.1.12"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.robloxmanager.app",
+    "productName": "Roblox Instance Manager",
+    "files": [
+      "main.js",
+      "preload.js",
+      "services/**",
+      "src/**",
+      "assets/**"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
