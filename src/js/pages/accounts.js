@@ -34,9 +34,10 @@ export class AccountsPage {
   init() {
     document.getElementById('add-account-btn')?.addEventListener('click', openAddModal);
     document.getElementById('add-account-btn-empty')?.addEventListener('click', openAddModal);
-    document.querySelectorAll('.launch-btn').forEach(btn => btn.addEventListener('click', () => handleLaunch(btn)));
+    document.querySelectorAll('.launch-btn').forEach(btn => btn.addEventListener('click', () => handleLaunch(btn, false)));
     document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', () => handleRemove(btn)));
     document.querySelectorAll('.refresh-avatar-btn').forEach(btn => btn.addEventListener('click', () => handleRefreshAvatar(btn)));
+    bindLaunchDropdowns();
   }
 }
 
@@ -87,9 +88,37 @@ function accountCard(acc) {
 
         <!-- Actions -->
         <div style="display:flex;gap:6px;">
-          <button class="btn-primary launch-btn" data-id="${acc.id}" style="flex:1;padding:7px 10px;font-size:12.5px;">
-            Launch
-          </button>
+          <!-- Split launch button -->
+          <div style="display:flex;flex:1;position:relative;">
+            <button class="btn-primary launch-btn" data-id="${acc.id}"
+                    style="flex:1;padding:7px 10px;font-size:12.5px;border-radius:8px 0 0 8px;border-right:1px solid rgba(0,0,0,0.25);">
+              Launch
+            </button>
+            <button class="launch-menu-btn btn-primary" data-id="${acc.id}"
+                    title="More launch options"
+                    style="padding:7px 9px;border-radius:0 8px 8px 0;font-size:9px;flex-shrink:0;">
+              ▾
+            </button>
+            <div class="launch-dropdown" data-id="${acc.id}"
+                 style="display:none;position:absolute;bottom:calc(100% + 5px);left:0;right:0;
+                        background:#111111;border:1px solid rgba(255,255,255,0.12);
+                        border-radius:8px;overflow:hidden;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.6);">
+              <button class="launch-direct-opt" data-id="${acc.id}"
+                      style="width:100%;padding:9px 12px;text-align:left;background:none;border:none;
+                             color:white;font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.07);"
+                      onmouseenter="this.style.background='rgba(255,255,255,0.06)'"
+                      onmouseleave="this.style.background='none'">
+                Launch (Direct)
+              </button>
+              <button class="launch-bloxstrap-opt" data-id="${acc.id}"
+                      style="width:100%;padding:9px 12px;text-align:left;background:none;border:none;
+                             color:rgba(255,255,255,0.55);font-size:12px;cursor:pointer;"
+                      onmouseenter="this.style.background='rgba(255,255,255,0.06)'"
+                      onmouseleave="this.style.background='none'">
+                Launch via Bloxstrap
+              </button>
+            </div>
+          </div>
           <button class="btn-ghost refresh-avatar-btn" data-id="${acc.id}"
                   title="Refresh avatar"
                   style="width:31px;height:31px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -203,20 +232,66 @@ function showError(msg) {
 
 // ── Action handlers ───────────────────────────────────────────────────────────
 
-async function handleLaunch(btn) {
+function bindLaunchDropdowns() {
+  // Toggle dropdown on ▾ click
+  document.querySelectorAll('.launch-menu-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const dropdown = document.querySelector(`.launch-dropdown[data-id="${id}"]`);
+      if (!dropdown) return;
+      const isOpen = dropdown.style.display !== 'none';
+      // Close all other open dropdowns first
+      document.querySelectorAll('.launch-dropdown').forEach(d => { d.style.display = 'none'; });
+      dropdown.style.display = isOpen ? 'none' : 'block';
+    });
+  });
+
+  // Direct launch option
+  document.querySelectorAll('.launch-direct-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.launch-dropdown').forEach(d => { d.style.display = 'none'; });
+      const launchBtn = document.querySelector(`.launch-btn[data-id="${btn.dataset.id}"]`);
+      if (launchBtn) handleLaunch(launchBtn, false);
+    });
+  });
+
+  // Bloxstrap launch option
+  document.querySelectorAll('.launch-bloxstrap-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.launch-dropdown').forEach(d => { d.style.display = 'none'; });
+      const launchBtn = document.querySelector(`.launch-btn[data-id="${btn.dataset.id}"]`);
+      if (launchBtn) handleLaunch(launchBtn, true);
+    });
+  });
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.launch-dropdown').forEach(d => { d.style.display = 'none'; });
+  }, { capture: true });
+}
+
+async function handleLaunch(btn, useBloxstrap = false) {
   const accountId = btn.dataset.id;
   btn.disabled = true;
+  const menuBtn = document.querySelector(`.launch-menu-btn[data-id="${accountId}"]`);
+  if (menuBtn) menuBtn.disabled = true;
   const orig = btn.textContent;
   btn.innerHTML = `<span class="spinner" style="width:13px;height:13px;border-width:2px;"></span>`;
 
   try {
-    await window.api.instances.launch(accountId);
-    showToast('Roblox launched', 'success');
+    await window.api.instances.launch(accountId, useBloxstrap);
+    showToast(useBloxstrap ? 'Launched via Bloxstrap' : 'Roblox launched', 'success');
     btn.textContent = 'Done';
-    setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 3000);
+    setTimeout(() => {
+      btn.disabled = false;
+      if (menuBtn) menuBtn.disabled = false;
+      btn.textContent = orig;
+    }, 3000);
   } catch (err) {
     showToast(err.message || 'Launch failed', 'error');
     btn.disabled = false;
+    if (menuBtn) menuBtn.disabled = false;
     btn.textContent = orig;
   }
 }
@@ -260,9 +335,10 @@ function rerenderGrid() {
   const grid = document.getElementById('accounts-grid');
   if (grid) {
     grid.innerHTML = state.accounts.map(acc => accountCard(acc)).join('');
-    document.querySelectorAll('.launch-btn').forEach(btn => btn.addEventListener('click', () => handleLaunch(btn)));
+    document.querySelectorAll('.launch-btn').forEach(btn => btn.addEventListener('click', () => handleLaunch(btn, false)));
     document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', () => handleRemove(btn)));
     document.querySelectorAll('.refresh-avatar-btn').forEach(btn => btn.addEventListener('click', () => handleRefreshAvatar(btn)));
+    bindLaunchDropdowns();
   } else {
     const content = document.getElementById('page-content');
     const page = new AccountsPage();

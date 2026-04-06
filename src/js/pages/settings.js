@@ -1,6 +1,7 @@
 import { state }     from '../state.js';
 import { showToast } from '../components/toast.js';
 
+
 export class SettingsPage {
   render() {
     const s = state.settings;

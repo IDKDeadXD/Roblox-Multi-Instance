@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, nativeImage } = require('electron');
 const path = require('path');
 const mutexHolder = require('./services/mutexHolder');
 
@@ -18,6 +18,8 @@ function loadServices() {
   robloxLauncher = require('./services/robloxLauncher');
 }
 
+const APP_ICON = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -27,6 +29,7 @@ function createWindow() {
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
+    icon: APP_ICON,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -175,11 +178,25 @@ ipcMain.handle('instances:list', async () => {
   return instanceManager.getRunningInstances();
 });
 
-ipcMain.handle('instances:launch', async (_event, { accountId }) => {
+ipcMain.handle('instances:launch', async (_event, { accountId, useBloxstrap = false }) => {
   if (!accountId || typeof accountId !== 'string') throw new Error('Invalid account ID');
 
   const account = accountManager.getById(accountId);
   if (!account) throw new Error('Account not found');
+
+  // If launching directly (not via Bloxstrap), our app must have taken ownership
+  // of the singleton mutexes before Roblox ever started. If Roblox is already
+  // running and none of those instances were launched by us, Roblox owns the
+  // mutexes — a second direct-launch will get wrong singleton state.
+  if (!useBloxstrap) {
+    const running = await instanceManager.getRunningInstances();
+    const external = running.filter(i => i.accountId === null);
+    if (external.length > 0 && running.every(i => i.accountId === null)) {
+      throw new Error(
+        'Roblox is already open.\n\nClose all Roblox windows first — multi-instance requires this app to start before Roblox so it can hold the singleton. Then relaunch from here.\n\nAlternatively, use "Launch via Bloxstrap" (requires Bloxstrap multi-instance to be enabled).'
+      );
+    }
+  }
 
   const token = encryption.decrypt(account.encryptedToken);
   const settings = storage.getSettings();
@@ -190,7 +207,7 @@ ipcMain.handle('instances:launch', async (_event, { accountId }) => {
     await delay(settings.launchDelay || 800);
   }
 
-  return robloxLauncher.launch(token);
+  return robloxLauncher.launch(token, useBloxstrap);
 });
 
 ipcMain.handle('instances:kill', async (_event, { pid }) => {
@@ -209,6 +226,25 @@ ipcMain.handle('settings:set', async (_event, settings) => {
   if (typeof settings !== 'object' || settings === null) throw new Error('Invalid settings');
   return storage.setSettings(settings);
 });
+
+// ── Roblox process management ─────────────────────────────────────────────────
+
+// Renderer calls this once on boot to check if Roblox was already running
+// before our app started. Pull pattern — avoids race conditions from push.
+ipcMain.handle('roblox:check-startup', async () => {
+  const instances = await instanceManager.getRunningInstances();
+  return instances.length;
+});
+
+ipcMain.handle('roblox:close-all', async () => {
+  const { exec } = require('child_process');
+  return new Promise((resolve) => {
+    exec('taskkill /IM RobloxPlayerBeta.exe /F', { timeout: 5000 }, () => resolve(true));
+  });
+});
+
+// ── App icon ──────────────────────────────────────────────────────────────────
+
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

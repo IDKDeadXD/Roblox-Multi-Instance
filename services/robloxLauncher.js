@@ -2,6 +2,7 @@
 
 const https  = require('https');
 const { spawn } = require('child_process');
+const { shell } = require('electron');
 const { getRobloxPlayerPath } = require('./robloxPath');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
@@ -80,7 +81,7 @@ async function getAuthTicket(token, csrfToken) {
   return ticket;
 }
 
-async function launch(roblosecurityToken) {
+async function launch(roblosecurityToken, useBloxstrap = false) {
   const safeToken = sanitizeToken(roblosecurityToken);
   if (safeToken.length < 100) throw new Error('Token appears invalid or incomplete');
 
@@ -89,12 +90,6 @@ async function launch(roblosecurityToken) {
 
   const ticket = await getAuthTicket(safeToken, csrfToken);
 
-  // Build the roblox-player:// URL but DO NOT use shell.openExternal — that
-  // routes through the registered protocol handler which on this machine is
-  // Bloxstrap. Bloxstrap kills any existing Roblox instance before launching
-  // a new one (unless its own multi-instance flag is on), bypassing our mutex
-  // holder entirely. Spawning RobloxPlayerBeta.exe directly skips Bloxstrap
-  // and lets our mutex holder do its job.
   const launchUrl = [
     'roblox-player://1',
     '+launchmode:app',
@@ -106,17 +101,24 @@ async function launch(roblosecurityToken) {
     '+LaunchExp:InApp'
   ].join('');
 
-  const exePath = getRobloxPlayerPath();
-  if (!exePath) throw new Error('Could not locate RobloxPlayerBeta.exe');
+  if (useBloxstrap) {
+    // Bloxstrap path — goes through the registered roblox-player:// handler.
+    // Requires Bloxstrap's "Multi-instance launching" setting to be ON, otherwise
+    // Bloxstrap will kill the existing instance. Use this if direct launch fails.
+    console.log('[launcher] Opening via Bloxstrap:', launchUrl.slice(0, 120) + '…');
+    await shell.openExternal(launchUrl);
+  } else {
+    // Direct path — spawns RobloxPlayerBeta.exe directly, bypassing Bloxstrap.
+    // Our mutex holder must be running before any Roblox instance starts.
+    const exePath = getRobloxPlayerPath();
+    if (!exePath) throw new Error('Could not locate RobloxPlayerBeta.exe');
 
-  console.log('[launcher] Spawning:', exePath);
-  console.log('[launcher] URL:', launchUrl.slice(0, 120) + '…');
+    console.log('[launcher] Spawning directly:', exePath);
+    console.log('[launcher] URL:', launchUrl.slice(0, 120) + '…');
 
-  const child = spawn(exePath, [launchUrl], {
-    detached: true,
-    stdio:    'ignore'
-  });
-  child.unref();
+    const child = spawn(exePath, [launchUrl], { detached: true, stdio: 'ignore' });
+    child.unref();
+  }
 
   return { success: true };
 }

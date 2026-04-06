@@ -18,12 +18,17 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   instances: {
-    list:     ()                    => ipcRenderer.invoke('instances:list'),
-    launch:   (accountId)          => ipcRenderer.invoke('instances:launch', { accountId }),
-    kill:     (pid)                => ipcRenderer.invoke('instances:kill', { pid }),
+    list:     ()                              => ipcRenderer.invoke('instances:list'),
+    launch:   (accountId, useBloxstrap=false) => ipcRenderer.invoke('instances:launch', { accountId, useBloxstrap }),
+    kill:     (pid)                           => ipcRenderer.invoke('instances:kill', { pid }),
     onUpdate: (cb) => {
       ipcRenderer.on('instances:update', (_e, data) => cb(data));
     }
+  },
+
+  roblox: {
+    checkStartup: ()   => ipcRenderer.invoke('roblox:check-startup'),
+    closeAll:     ()   => ipcRenderer.invoke('roblox:close-all')
   },
 
   settings: {
