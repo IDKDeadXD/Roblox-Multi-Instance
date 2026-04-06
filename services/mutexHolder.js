@@ -1,12 +1,17 @@
 'use strict';
 
 /**
- * Holds the ROBLOX_singletonEvent mutex for the lifetime of the app.
+ * Holds the Roblox singleton mutexes for the lifetime of the app.
  *
- * Roblox uses this named mutex to detect if another instance is already running.
- * By creating it first (with false = no initial ownership), Roblox always sees it
- * as pre-existing and runs without raising a singleton conflict.
- * This mirrors exactly what MultiBloxy (github.com/Zgoly/MultiBloxy) does.
+ * Roblox uses CreateMutex() on two named objects to detect a running instance:
+ *   - ROBLOX_singletonMutex
+ *   - ROBLOX_singletonEvent  (named Mutex despite the "Event" suffix)
+ * When CreateMutex returns ERROR_ALREADY_EXISTS, Roblox skips the singleton
+ * guard and runs normally as a non-primary instance.
+ *
+ * We also lock RobloxCookies.dat with FileShare.None so that when any Roblox
+ * instance exits it cannot clear the cookie file — which is what causes other
+ * running instances to get signed out.
  */
 
 const { spawn } = require('child_process');
@@ -15,13 +20,29 @@ const MUTEX_NAME = 'ROBLOX_singletonEvent';
 
 let holderProcess = null;
 
-// PowerShell: create the mutex then block on stdin so it stays alive
-// until we close stdin (on app quit).
+// PowerShell script that:
+// 1. Closes any leftover singleton objects from a previous crashed run
+// 2. Creates BOTH ROBLOX_singletonMutex AND ROBLOX_singletonEvent as owned Mutexes.
+//    Roblox calls CreateMutex() and checks GetLastError()==ERROR_ALREADY_EXISTS —
+//    finding an existing owned mutex puts it in non-singleton mode so it runs normally.
+// 3. Locks RobloxCookies.dat with exclusive read (FileShare.None) so that when any
+//    Roblox instance exits it cannot clear/overwrite the cookie file, which is what
+//    causes other instances to get signed out.
 const PS_SCRIPT = `
-$m = New-Object System.Threading.Mutex($false, "${MUTEX_NAME}")
+try { [System.Threading.Mutex]::OpenExisting("ROBLOX_singletonMutex").Close() } catch {}
+try { [System.Threading.Mutex]::OpenExisting("ROBLOX_singletonEvent").Close() } catch {}
+$m1 = New-Object System.Threading.Mutex($true, "ROBLOX_singletonMutex")
+$m2 = New-Object System.Threading.Mutex($true, "ROBLOX_singletonEvent")
+$cookiePath = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Roblox", "LocalStorage", "RobloxCookies.dat")
+$cookieLock = $null
+if ([System.IO.File]::Exists($cookiePath)) {
+    try { $cookieLock = [System.IO.File]::Open($cookiePath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None) } catch {}
+}
 Write-Output "held"
 [Console]::In.ReadLine() | Out-Null
-$m.Close()
+if ($cookieLock) { $cookieLock.Close() }
+try { $m1.ReleaseMutex() } catch {}; $m1.Close()
+try { $m2.ReleaseMutex() } catch {}; $m2.Close()
 `.trim();
 
 function start() {

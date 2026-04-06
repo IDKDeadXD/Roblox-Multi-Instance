@@ -1,7 +1,8 @@
 'use strict';
 
-const https = require('https');
-const { shell } = require('electron');
+const https  = require('https');
+const { spawn } = require('child_process');
+const { getRobloxPlayerPath } = require('./robloxPath');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
@@ -88,10 +89,12 @@ async function launch(roblosecurityToken) {
 
   const ticket = await getAuthTicket(safeToken, csrfToken);
 
-  // launchmode:app opens Roblox to the home screen — authenticated but not
-  // joined to any specific game. The user navigates to their game from within
-  // the client. This avoids sharing a single "normal" login session across
-  // instances, which causes session invalidation when one instance closes.
+  // Build the roblox-player:// URL but DO NOT use shell.openExternal — that
+  // routes through the registered protocol handler which on this machine is
+  // Bloxstrap. Bloxstrap kills any existing Roblox instance before launching
+  // a new one (unless its own multi-instance flag is on), bypassing our mutex
+  // holder entirely. Spawning RobloxPlayerBeta.exe directly skips Bloxstrap
+  // and lets our mutex holder do its job.
   const launchUrl = [
     'roblox-player://1',
     '+launchmode:app',
@@ -103,8 +106,18 @@ async function launch(roblosecurityToken) {
     '+LaunchExp:InApp'
   ].join('');
 
-  console.log('[launcher] Opening:', launchUrl.slice(0, 120) + '…');
-  await shell.openExternal(launchUrl);
+  const exePath = getRobloxPlayerPath();
+  if (!exePath) throw new Error('Could not locate RobloxPlayerBeta.exe');
+
+  console.log('[launcher] Spawning:', exePath);
+  console.log('[launcher] URL:', launchUrl.slice(0, 120) + '…');
+
+  const child = spawn(exePath, [launchUrl], {
+    detached: true,
+    stdio:    'ignore'
+  });
+  child.unref();
+
   return { success: true };
 }
 
