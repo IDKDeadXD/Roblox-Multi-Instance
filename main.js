@@ -34,8 +34,12 @@ const APP_ICON = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
 // ── Tray ──────────────────────────────────────────────────────────────────────
 
 function createTray() {
-  const trayImg = nativeImage.createFromPath(path.join(__dirname, 'icon.png'))
-    .resize({ width: 16, height: 16 });
+  const icoPath = path.join(__dirname, 'dist', '.icon-ico', 'icon.ico');
+  const pngPath = path.join(__dirname, 'icon.png');
+  const trayIconPath = process.platform === 'win32' && require('fs').existsSync(icoPath)
+    ? icoPath
+    : pngPath;
+  const trayImg = nativeImage.createFromPath(trayIconPath);
   tray = new Tray(trayImg);
   tray.setToolTip('Roblox Instance Manager');
 
