@@ -82,4 +82,18 @@ async function getAvatarUrl(userId) {
   }
 }
 
-module.exports = { getUserInfo, getAvatarUrl };
+async function checkTokenHealth(roblosecurityToken) {
+  const safeToken = sanitizeToken(roblosecurityToken);
+  try {
+    const { status } = await httpsGet(
+      'users.roblox.com',
+      '/v1/users/authenticated',
+      { Cookie: `.ROBLOSECURITY=${safeToken}`, Referer: 'https://www.roblox.com/' }
+    );
+    return status === 200 ? 'valid' : 'expired';
+  } catch {
+    return 'unknown';
+  }
+}
+
+module.exports = { getUserInfo, getAvatarUrl, checkTokenHealth };

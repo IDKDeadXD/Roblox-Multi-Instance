@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roblox Instance Manager — Cover</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #000000;
+      color: white;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── Canvas grid ── */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* ── Page layout ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      width: 1280px;
+      height: 720px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 64px 72px;
+      gap: 48px;
+    }
+
+    /* ── Left: hero text ── */
+    .hero {
+      flex: 0 0 auto;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
+      font-family: 'Geist Mono', monospace;
+      width: fit-content;
+    }
+
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 6px rgba(255,255,255,0.6);
+    }
+
+    .hero-title {
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1.0;
+      letter-spacing: -2.5px;
+      color: #ffffff;
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: -0.2px;
+      line-height: 1.5;
+    }
+
+    .social-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .social-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: rgba(255,255,255,0.28);
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    .social-item svg { opacity: 0.4; flex-shrink: 0; }
+
+    /* ── Right: App window ── */
+    .window-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1100px;
+      perspective-origin: 40% 50%;
+    }
+
+    .window-scene {
+      position: relative;
+      width: 660px;
+      height: 400px;
+      transform-style: preserve-3d;
+      transform: rotateX(6deg) rotateY(-14deg) rotateZ(0.5deg);
+      transition: transform 0.6s ease;
+      will-change: transform;
+    }
+
+    .window {
+      will-change: transform;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transform: translateZ(0);
+      image-rendering: -webkit-optimize-contrast;
+    }
+
+    .window-wrap:hover .window-scene {
+      transform: rotateX(3deg) rotateY(-8deg) rotateZ(0deg);
+    }
+
+    .window {
+      width: 660px;
+      height: 400px;
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.06),
+        0 2px 0 rgba(255,255,255,0.08) inset,
+        0 60px 160px rgba(0,0,0,0.95),
+        0 12px 40px rgba(0,0,0,0.7);
+    }
+
+    /* ── Titlebar ── */
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      height: 40px;
+      background: #000000;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    .titlebar-left { display: flex; align-items: center; gap: 8px; }
+
+    .app-icon {
+      width: 20px; height: 20px;
+      background: #ffffff; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .titlebar-name {
+      font-size: 11.5px; font-weight: 600;
+      color: rgba(255,255,255,0.35); letter-spacing: 0.01em;
+    }
+
+    .titlebar-btns { display: flex; gap: 5px; }
+
+    .win-btn {
+      width: 24px; height: 24px; border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.22);
+    }
+
+    /* ── Layout body ── */
+    .window-body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 160px; flex-shrink: 0;
+      background: #000000;
+      border-right: 1px solid rgba(255,255,255,0.07);
+      display: flex; flex-direction: column;
+      padding: 10px 8px; gap: 2px;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 6px;
+      font-size: 12px; font-weight: 500;
+      color: rgba(255,255,255,0.28);
+      border: 1px solid transparent;
+    }
+
+    .nav-item.active {
+      background: rgba(255,255,255,0.06);
+      color: #ffffff;
+      border-color: rgba(255,255,255,0.11);
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.10);
+      color: rgba(255,255,255,0.7);
+      font-size: 9.5px; font-weight: 600;
+      padding: 1px 5px; border-radius: 20px;
+      font-family: 'Geist Mono', monospace;
+      border: 1px solid rgba(255,255,255,0.11);
+    }
+
+    .sidebar-footer {
+      margin-top: auto; padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; gap: 6px; padding-left: 4px;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #ffffff; box-shadow: 0 0 5px rgba(255,255,255,0.45);
+    }
+
+    .status-label { font-size: 10px; color: rgba(255,255,255,0.20); }
+
+    /* ── Main content ── */
+    .main-content {
+      flex: 1; padding: 14px 14px;
+      overflow: hidden; display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .content-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .content-title { font-size: 14px; font-weight: 700; color: white; letter-spacing: -0.3px; }
+    .content-sub   { font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 2px; }
+
+    .btn-add {
+      display: flex; align-items: center; gap: 5px;
+      background: #ffffff; color: #000000;
+      padding: 5px 11px; border-radius: 7px;
+      font-weight: 700; font-size: 11px; border: none;
+    }
+
+    /* ── Account cards — match real app layout ── */
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .acc-card {
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .acc-card.running { border-color: rgba(255,255,255,0.17); }
+
+    /* Header strip */
+    .acc-strip {
+      height: 52px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      position: relative;
+    }
+
+    /* Overlapping avatar */
+    .acc-avatar {
+      position: absolute;
+      bottom: -18px; left: 13px;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+
+    .acc-online-dot {
+      position: absolute;
+      bottom: -12px; left: 38px;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #000000;
+      box-shadow: 0 0 5px rgba(255,255,255,0.7);
+    }
+
+    /* Card body */
+    .acc-body { padding: 26px 13px 13px; }
+
+    .acc-name {
+      font-size: 13px; font-weight: 700; color: white;
+      letter-spacing: -0.3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .acc-username {
+      font-size: 10px; color: rgba(255,255,255,0.28);
+      font-family: 'Geist Mono', monospace; margin-top: 2px;
+    }
+
+    .acc-status-row {
+      display: flex; align-items: center; gap: 5px; margin-top: 8px;
+    }
+
+    .tag-running {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 20px; padding: 2px 8px;
+      font-size: 9.5px; font-weight: 600; color: rgba(255,255,255,0.9);
+    }
+
+    .tag-running-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 4px rgba(255,255,255,0.8);
+    }
+
+    .tag-idle {
+      display: inline-flex; align-items: center;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 2px 8px;
+      font-size: 9.5px; font-weight: 600; color: rgba(255,255,255,0.28);
+    }
+
+    .acc-actions {
+      display: flex; gap: 5px; margin-top: 10px;
+    }
+
+    .btn-launch {
+      flex: 1; background: #ffffff; color: #000;
+      border: none; border-radius: 7px;
+      padding: 6px 0; font-size: 11.5px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .btn-launch-more {
+      width: 26px;
+      background: #ffffff; color: #000;
+      border: none; border-radius: 7px;
+      font-size: 9px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .btn-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.28);
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 8px;
+    }
+
+    .filter-tabs {
+      display: flex;
+      background: rgba(255,255,255,0.04);
+      border-radius: 7px; padding: 2px; gap: 1px;
+    }
+
+    .filter-tab {
+      padding: 4px 10px; font-size: 10.5px; border-radius: 5px;
+      border: none; cursor: pointer; font-weight: 500;
+      background: none; color: rgba(255,255,255,0.4);
+    }
+
+    .filter-tab.active {
+      background: rgba(255,255,255,0.12); color: white; font-weight: 600;
+    }
+
+    .sort-select {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 7px; color: rgba(255,255,255,0.45);
+      font-size: 10.5px; padding: 4px 8px; outline: none;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="page">
+
+    <!-- ── Left: Hero ── -->
+    <div class="hero">
+      <div class="hero-badge">
+        <div class="hero-badge-dot"></div>
+        Multi-account launcher
+      </div>
+
+      <h1 class="hero-title">Multiple<br>Roblox<br>Instances</h1>
+
+      <p class="hero-sub">Run multiple accounts simultaneously.<br>Teleports fixed.</p>
+
+      <div class="social-links">
+        <a class="social-item" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          github.com/IDKDeadXD/Roblox-Multi-Instance
+        </a>
+
+      </div>
+    </div>
+
+    <!-- ── Right: Window mockup ── -->
+    <div class="window-wrap">
+      <div class="window-scene">
+        <div class="window">
+
+          <!-- Titlebar -->
+          <div class="titlebar">
+            <div class="titlebar-left">
+              <div class="app-icon">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                </svg>
+              </div>
+              <span class="titlebar-name">Roblox Instance Manager</span>
+            </div>
+            <div class="titlebar-btns">
+              <div class="win-btn"><svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="4" x2="7" y2="4"/></svg></div>
+              <div class="win-btn"><svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="6" height="6" rx="1"/></svg></div>
+              <div class="win-btn"><svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="7" y2="7"/><line x1="7" y1="1" x2="1" y2="7"/></svg></div>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="window-body">
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+              <div class="nav-item active">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>
+                </svg>
+                Accounts
+                <span class="nav-badge">3</span>
+              </div>
+              <div class="nav-item">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+                </svg>
+                Settings
+              </div>
+              <div class="sidebar-footer">
+                <div class="status-dot"></div>
+                <span class="status-label">Ready</span>
+              </div>
+            </div>
+
+            <!-- Main -->
+            <div class="main-content">
+
+              <!-- Header -->
+              <div class="content-header">
+                <div>
+                  <div class="content-title">Accounts</div>
+                  <div class="content-sub">3 accounts &middot; 2 running</div>
+                </div>
+                <div class="btn-add">
+                  <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add Account
+                </div>
+              </div>
+
+              <!-- Filter bar -->
+              <div class="filter-bar">
+                <div class="filter-tabs">
+                  <button class="filter-tab active">All</button>
+                  <button class="filter-tab">Running</button>
+                  <button class="filter-tab">Idle</button>
+                </div>
+                <select class="sort-select">
+                  <option>Sort: Added</option>
+                </select>
+              </div>
+
+              <!-- Account cards -->
+              <div class="accounts-grid">
+
+                <!-- Card 1 — sillytoe running -->
+                <div class="acc-card running">
+                  <div class="acc-strip">
+                    <div class="acc-avatar">
+                      <img src="https://tr.rbxcdn.com/30DAY-AvatarHeadshot-6712A2B6C262192346AD52409C75DC31-Png/150/150/AvatarHeadshot/Png/isCircular" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous">
+                    </div>
+                    <div class="acc-online-dot"></div>
+                  </div>
+                  <div class="acc-body">
+                    <div class="acc-name">sillytoe</div>
+                    <div class="acc-username">@sillytoe &middot; 2956724342</div>
+                    <div class="acc-status-row">
+                      <div class="tag-running"><div class="tag-running-dot"></div>Running</div>
+                      <span style="font-size:9px;color:rgba(255,255,255,0.18);">8m 14s</span>
+                    </div>
+                    <div class="acc-actions">
+                      <button class="btn-launch" style="border-radius:7px 0 0 7px;">Launch</button>
+                      <button class="btn-launch-more">▾</button>
+                      <button class="btn-icon">
+                        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card 2 — deadisdeadxd running -->
+                <div class="acc-card running">
+                  <div class="acc-strip">
+                    <div class="acc-avatar">
+                      <img src="https://tr.rbxcdn.com/30DAY-AvatarHeadshot-E23F2C1407051E563C5EADFF645D66C0-Png/150/150/AvatarHeadshot/Png/isCircular" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous">
+                    </div>
+                    <div class="acc-online-dot"></div>
+                  </div>
+                  <div class="acc-body">
+                    <div class="acc-name">deadisdeadxd <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:20px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.12);vertical-align:middle;">main</span></div>
+                    <div class="acc-username">@deadisdeadxd &middot; 1838724451</div>
+                    <div class="acc-status-row">
+                      <div class="tag-running"><div class="tag-running-dot"></div>Running</div>
+                      <span style="font-size:9px;color:rgba(255,255,255,0.18);">23m 57s</span>
+                    </div>
+                    <div class="acc-actions">
+                      <button class="btn-launch" style="border-radius:7px 0 0 7px;">Launch</button>
+                      <button class="btn-launch-more">▾</button>
+                      <button class="btn-icon">
+                        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const canvas = document.getElementById('bg-canvas');
+    const ctx    = canvas.getContext('2d');
+    const GRID = 40;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width  = window.innerWidth  * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width  = window.innerWidth  + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+      ctx.lineWidth = 1;
+
+      const cols = Math.ceil(canvas.width  / GRID) + 2;
+      const rows = Math.ceil(canvas.height / GRID) + 2;
+
+      // Vertical lines
+      for (let c = 0; c <= cols; c++) {
+        ctx.beginPath();
+        ctx.moveTo(c * GRID, 0);
+        ctx.lineTo(c * GRID, canvas.height);
+        ctx.stroke();
+      }
+
+      // Horizontal lines
+      for (let r = 0; r <= rows; r++) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * GRID);
+        ctx.lineTo(canvas.width, r * GRID);
+        ctx.stroke();
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+  </script>
+
+</body>
+</html>
